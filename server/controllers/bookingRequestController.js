@@ -41,7 +41,10 @@ exports.createBookingRequest = async (req, res) => {
       startTime: new Date(startTime),
       userId: req.user.id,
       status: 'pending'
-    });
+    })
+    .populate('userId')
+    .populate('chargerId');
+
 
     if (existingRequest) {
       return res.status(400).json({ message: 'You already have a pending request for this time slot' });
