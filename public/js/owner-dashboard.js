@@ -1,68 +1,84 @@
 // ================================================
-// OWNER DASHBOARD LOGIC (SAFE VERSION)
+// OWNER DASHBOARD LOGIC
 // ================================================
+// Demo: Owner management of charging stations
+// Features:
+// - Add/edit/delete charging stations
+// - Monitor booking activity
+// - View station statistics
+// - Track revenue and utilization
 
 let ownerChargers = [];
+let editingChargerId = null;
 let editChargerModal;
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('📊 Owner dashboard loading...');
-
+    
     if (!Auth.requireAuth()) return;
 
     try {
         const user = Auth.getCurrentUser();
-
+        
+        console.log(`👤 Owner: ${user.name} (${user.email})`);
+        
         if (user.role !== 'owner') {
+            console.error('🚫 Non-owner trying to access owner dashboard');
             alert('❌ Access denied - Owner role required');
             Auth.logout();
             return;
         }
 
+        // Update UI
         document.getElementById('businessName').textContent = user.name || 'Business';
-
+        
+        // Initialize modals
         editChargerModal = new bootstrap.Modal(document.getElementById('editChargerModal'));
 
-        document.getElementById('addChargerForm')
-            .addEventListener('submit', handleAddCharger);
-        document.getElementById('saveEditBtn')
-            .addEventListener('click', handleSaveEdit);
+        // Setup event listeners
+        document.getElementById('addChargerForm').addEventListener('submit', handleAddCharger);
+        document.getElementById('saveEditBtn').addEventListener('click', handleSaveEdit);
 
+        // Load initial data
+        console.log('⏳ Loading owner data...');
         await loadOwnerChargers();
         await loadStatistics();
         await loadPendingRequests();
 
+        console.log('✅ Owner dashboard ready');
+
+        // Refresh data every 30 seconds
         setInterval(() => {
+            console.log('🔄 Refreshing owner data...');
             loadOwnerChargers();
             loadStatistics();
             loadPendingRequests();
         }, 30000);
 
     } catch (err) {
-        console.error('❌ Owner dashboard init error:', err);
+        console.error('❌ Owner dashboard initialization error:', err);
+        // Continue anyway - demo-safe
     }
 });
 
-
-// ================================================
-// LOAD OWNER CHARGERS
-// ================================================
 async function loadOwnerChargers() {
     try {
+        console.log('🔌 Loading chargers for owner...');
         const data = await API.getOwnerChargers();
         ownerChargers = Array.isArray(data) ? data : [];
+        
+        console.log(`✅ Found ${ownerChargers.length} chargers`);
 
         let html = '';
-
         if (ownerChargers.length === 0) {
-            html = '<p class="text-muted">No stations yet.</p>';
+            html = '<p class="text-muted">No stations yet. Add your first charging station above!</p>';
         } else {
             html = `
                 <div class="table-responsive">
-                    <table class="table table-hover">
+                    <table class="table table-hover mb-0">
                         <thead class="table-light">
                             <tr>
-                                <th>Station</th>
+                                <th>Station Name</th>
                                 <th>Type</th>
                                 <th>Slots</th>
                                 <th>Bookings</th>
@@ -73,169 +89,272 @@ async function loadOwnerChargers() {
             `;
 
             for (const charger of ownerChargers) {
-                const chargerName = charger.name || "Unknown";
-                const chargerAddress = charger.address || "-";
-                const chargerType = charger.chargerType || "-";
-                const available = charger.availableSlots ?? 0;
-                const total = charger.totalSlots ?? 0;
-
-                let bookingCount = 0;
-
+                // Fetch booking count for this charger
                 try {
                     const bookings = await API.getChargerBookings(charger._id);
-                    if (Array.isArray(bookings)) {
-                        bookingCount = bookings.filter(b => b.status !== 'cancelled').length;
-                    }
-                } catch (err) {
-                    console.warn('⚠️ Could not load bookings');
-                }
+                    const bookingCount = Array.isArray(bookings) ? bookings.filter(b => b.status !== 'cancelled').length : 0;
 
-                html += `
-                    <tr>
-                        <td>
-                            <strong>${chargerName}</strong><br>
-                            <small class="text-muted">${chargerAddress}</small>
-                        </td>
-                        <td><span class="badge bg-secondary">${chargerType}</span></td>
-                        <td>${available}/${total}</td>
-                        <td>${bookingCount}</td>
-                        <td>
-                            <button class="btn btn-sm btn-warning"
-                                onclick="openEditModal('${charger._id}', '${chargerName}', '', ${total})">
-                                Edit
-                            </button>
-                            <button class="btn btn-sm btn-danger"
-                                onclick="deleteCharger('${charger._id}')">
-                                Delete
-                            </button>
-                        </td>
-                    </tr>
-                `;
+                    html += `
+                        <tr>
+                            <td>
+                                <strong>${charger.name}</strong>
+                                <br>
+                                <small class="text-muted">${charger.address}</small>
+                            </td>
+                            <td><span class="badge bg-secondary">${charger.chargerType}</span></td>
+                            <td>${charger.availableSlots}/${charger.totalSlots}</td>
+                            <td><strong>${bookingCount}</strong></td>
+                            <td>
+                                <button class="btn btn-sm btn-warning" onclick="openEditModal('${charger._id}', '${charger.name}', '${(charger.description || '').replace(/'/g, "&apos;")}', ${charger.totalSlots})">Edit</button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteCharger('${charger._id}')">Delete</button>
+                            </td>
+                        </tr>
+                    `;
+                } catch (err) {
+                    console.warn(`⚠️ Could not load bookings for charger ${charger._id}:`, err);
+                    html += `
+                        <tr>
+                            <td>
+                                <strong>${charger.name}</strong>
+                                <br>
+                                <small class="text-muted">${charger.address}</small>
+                            </td>
+                            <td><span class="badge bg-secondary">${charger.chargerType}</span></td>
+                            <td>${charger.availableSlots}/${charger.totalSlots}</td>
+                            <td><span class="text-muted">-</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-warning" onclick="openEditModal('${charger._id}', '${charger.name}', '${(charger.description || '').replace(/'/g, "&apos;")}', ${charger.totalSlots})">Edit</button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteCharger('${charger._id}')">Delete</button>
+                            </td>
+                        </tr>
+                    `;
+                }
             }
 
-            html += `</tbody></table></div>`;
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
         }
 
         document.getElementById('myChargersList').innerHTML = html;
-
     } catch (err) {
         console.error('❌ Failed to load chargers:', err);
-        document.getElementById('myChargersList').innerHTML =
-            '<p class="text-warning">Could not load chargers</p>';
+        document.getElementById('myChargersList').innerHTML = '<p class="text-warning">⚠️ Could not load chargers. Please refresh the page.</p>';
     }
 }
 
+async function handleAddCharger(e) {
+    e.preventDefault();
 
-// ================================================
-// LOAD STATISTICS
-// ================================================
+    try {
+        console.log('➕ Adding new charger...');
+        
+        const data = {
+            name: document.getElementById('chargerName').value,
+            address: document.getElementById('chargerAddress').value,
+            latitude: parseFloat(document.getElementById('chargerLatitude').value),
+            longitude: parseFloat(document.getElementById('chargerLongitude').value),
+            chargerType: document.getElementById('chargerType').value,
+            totalSlots: parseInt(document.getElementById('chargerSlots').value),
+            description: document.getElementById('chargerDescription').value
+        };
+
+        if (isNaN(data.latitude) || isNaN(data.longitude)) {
+            console.warn('⚠️ Invalid coordinates');
+            alert('❌ Please enter valid coordinates');
+            return;
+        }
+
+        console.log(`📍 New charger: ${data.name} at (${data.latitude}, ${data.longitude})`);
+        
+        const result = await API.createCharger(data);
+        if (result.error || result.message) {
+            throw new Error(result.message || result.error);
+        }
+        
+        console.log(`✅ Charger created: ${data.name}`);
+        alert('✅ Charging station added successfully!');
+        e.target.reset();
+        await loadOwnerChargers();
+        await loadStatistics();
+    } catch (err) {
+        console.error('❌ Failed to add charger:', err);
+        alert('❌ Failed to add charger: ' + (err.message || 'Please try again'));
+    }
+}
+
+function openEditModal(id, name, description, slots) {
+    console.log(`✏️ Editing charger: ${name}`);
+    document.getElementById('editChargerId').value = id;
+    document.getElementById('editChargerName').value = name;
+    document.getElementById('editChargerDescription').value = description || '';
+    document.getElementById('editChargerSlots').value = slots;
+    editChargerModal.show();
+}
+
+async function handleSaveEdit() {
+    try {
+        const id = document.getElementById('editChargerId').value;
+        const name = document.getElementById('editChargerName').value;
+        
+        console.log(`💾 Saving changes to charger: ${name}`);
+        
+        const result = await API.updateCharger(id, {
+            name: name,
+            description: document.getElementById('editChargerDescription').value,
+            totalSlots: parseInt(document.getElementById('editChargerSlots').value)
+        });
+
+        if (result.error || result.message) {
+            throw new Error(result.message || result.error);
+        }
+        
+        console.log(`✅ Charger updated: ${name}`);
+        alert('✅ Station updated successfully!');
+        editChargerModal.hide();
+        await loadOwnerChargers();
+        await loadStatistics();
+    } catch (err) {
+        console.error('❌ Failed to update charger:', err);
+        alert('❌ Failed to update: ' + (err.message || 'Please try again'));
+    }
+}
+
+async function deleteCharger(id) {
+    if (!confirm('⚠️ Are you sure you want to delete this station?')) return;
+
+    try {
+        console.log(`🗑️ Deleting charger: ${id}`);
+        const result = await API.deleteCharger(id);
+        if (!result.error) {
+            console.log(`✅ Charger deleted: ${id}`);
+            alert('✅ Station deleted');
+            await loadOwnerChargers();
+            await loadStatistics();
+        } else {
+            throw new Error(result.error || 'Unknown error');
+        }
+    } catch (err) {
+        console.error('❌ Failed to delete charger:', err);
+        alert('❌ Failed to delete station: ' + (err.message || 'Please try again'));
+    }
+}
+
 async function loadStatistics() {
     try {
+        console.log('📊 Loading owner statistics...');
         let totalBookings = 0;
-        let totalSlotsInUse = 0;
+        let totalAvailableSlots = 0;
 
         for (const charger of ownerChargers) {
-            totalSlotsInUse += (charger.totalSlots ?? 0) - (charger.availableSlots ?? 0);
-
+            totalAvailableSlots += charger.availableSlots;
             try {
                 const bookings = await API.getChargerBookings(charger._id);
                 if (Array.isArray(bookings)) {
                     totalBookings += bookings.filter(b => b.status !== 'cancelled').length;
                 }
-            } catch {}
+            } catch (err) {
+                console.warn(`⚠️ Could not load bookings for charger ${charger._id}:`, err);
+            }
         }
+
+        // Total slots in use = total from all chargers - available slots
+        const totalSlotsInUse = ownerChargers.reduce((sum, c) => sum + (c.totalSlots - c.availableSlots), 0);
 
         document.getElementById('totalStations').textContent = ownerChargers.length;
         document.getElementById('totalBookings').textContent = totalBookings;
         document.getElementById('totalSlots').textContent = totalSlotsInUse;
 
-        await loadRecentBookings();
+        console.log(`✅ Statistics: ${ownerChargers.length} stations, ${totalBookings} bookings, ${totalSlotsInUse} slots in use`);
 
+        await loadRecentBookings();
     } catch (err) {
-        console.error('❌ Stats error:', err);
+        console.error('❌ Failed to load statistics:', err);
+        document.getElementById('totalStations').textContent = '0';
+        document.getElementById('totalBookings').textContent = '0';
+        document.getElementById('totalSlots').textContent = '0';
     }
 }
 
-
-// ================================================
-// LOAD RECENT BOOKINGS (SAFE)
-// ================================================
 async function loadRecentBookings() {
     try {
+        console.log('📋 Loading recent bookings...');
         let allBookings = [];
 
         for (const charger of ownerChargers) {
             try {
                 const bookings = await API.getChargerBookings(charger._id);
                 if (Array.isArray(bookings)) {
-                    allBookings = allBookings.concat(
-                        bookings.map(b => ({
-                            ...b,
-                            chargerName: charger.name || "Unknown"
-                        }))
-                    );
+                    allBookings = allBookings.concat(bookings.map(b => ({
+                        ...b,
+                        chargerName: charger.name
+                    })));
                 }
-            } catch {}
+            } catch (err) {
+                console.warn(`⚠️ Could not load bookings for charger ${charger._id}:`, err);
+            }
         }
 
         allBookings.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-        let html = '';
+        console.log(`✅ Found ${allBookings.length} total bookings`);
 
+        let html = '';
         if (allBookings.length === 0) {
             html = '<p class="text-muted">No bookings yet</p>';
         } else {
             allBookings.slice(0, 5).forEach(booking => {
-
-                const userName = booking.userId?.name || "Unknown User";
-                const startTime = booking.startTime
-                    ? new Date(booking.startTime).toLocaleString()
-                    : "-";
-
-                const statusClass = {
-                    active: 'bg-info',
-                    completed: 'bg-success',
-                    cancelled: 'bg-danger'
+                const startTime = new Date(booking.startTime).toLocaleString();
+                const statusBadge = {
+                    'active': 'bg-info',
+                    'completed': 'bg-success',
+                    'cancelled': 'bg-danger'
                 }[booking.status] || 'bg-secondary';
 
-                html += `
-                    <div class="mb-3 pb-3 border-bottom">
-                        <strong>${userName}</strong><br>
-                        <small class="text-muted">${booking.chargerName}</small><br>
-                        <span class="badge ${statusClass}">${booking.status}</span><br>
-                        <small>${startTime}</small><br>
-                        <small>${booking.durationHours || 0}h charging</small>
+            html += `
+                <div class="mb-3 pb-3 border-bottom">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <strong>${booking.userId.name}</strong>
+                            <br>
+                            <small class="text-muted">${booking.chargerName}</small>
+                        </div>
+                        <span class="badge ${statusBadge}">${booking.status}</span>
                     </div>
-                `;
-            });
-        }
+                    <small class="text-muted">${startTime}</small>
+                    <br>
+                    <small>${booking.durationHours}h charging</small>
+                </div>
+            `;
+        });
+            }
 
         document.getElementById('recentBookings').innerHTML = html;
-
     } catch (err) {
         console.error('❌ Failed to load recent bookings:', err);
-        document.getElementById('recentBookings').innerHTML =
-            '<p class="text-muted">No bookings yet</p>';
+        document.getElementById('recentBookings').innerHTML = '<p class="text-muted">No bookings yet</p>';
     }
 }
 
-
-// ================================================
-// LOAD PENDING REQUESTS
-// ================================================
+// Load pending booking requests for owner
 async function loadPendingRequests() {
     try {
+        console.log('📋 Loading pending booking requests...');
         const requests = await OwnerBookingManagement.loadPendingRequests();
+
+        console.log(`✅ Found ${requests.length} pending requests`);
 
         const html = OwnerBookingManagement.renderRequests(requests);
         document.getElementById('pendingRequests').innerHTML = html;
-
+        
+        // Update count badge
         const pendingCount = requests.filter(r => r.status === 'pending').length;
         document.getElementById('pendingRequestCount').textContent = pendingCount;
 
     } catch (err) {
         console.error('❌ Failed to load pending requests:', err);
-        document.getElementById('pendingRequests').innerHTML =
-            '<p class="text-danger">Failed to load requests</p>';
+        document.getElementById('pendingRequests').innerHTML = '<p class="text-danger">Failed to load requests</p>';
     }
 }
