@@ -16,16 +16,24 @@ const Auth = {
             const result = await API.login(email, password);
             console.log('📨 Login response received:', result);
 
+            // Check for errors
+            if (result.error || result.offline) {
+                console.error('❌ Login error:', result.error || 'Server connection failed');
+                alert('❌ Login error: ' + (result.error || 'Server connection failed') + '\n\nPlease try again.');
+                return;
+            }
+
             // API returns { token, user, message } on success
-            // Treat missing token as failure — don't treat a present "message" as an error
-            if (!result || !result.token) {
-                console.error('❌ Login failed:', result?.message || result?.error || 'No token received');
-                alert('❌ Login failed: ' + (result?.message || result?.error || 'Please check your credentials') + '\n\nTip: Try demo@example.com / password123');
+            // Treat missing token as failure
+            if (!result.token) {
+                const errorMsg = result.message || 'No token received';
+                console.error('❌ Login failed:', errorMsg);
+                alert('❌ Login failed: ' + errorMsg + '\n\nTip: Check your email and password.');
                 return;
             }
 
             // Verify role matches the login portal
-            if (result.user.role !== role) {
+            if (result.user && result.user.role !== role) {
                 console.warn(`⚠️ Role mismatch. User is ${result.user.role}, tried ${role}`);
                 alert(`❌ Wrong login portal!\n\nYou are a ${result.user.role}.\nPlease use the ${result.user.role} login page.`);
                 return;
@@ -56,10 +64,18 @@ const Auth = {
             const result = await API.register(name, email, password, role);
             console.log('📨 Registration response received:', result);
 
+            // Check for errors
+            if (result.error || result.offline) {
+                console.error('❌ Registration error:', result.error || 'Server connection failed');
+                alert('❌ Registration error: ' + (result.error || 'Server connection failed') + '\n\nPlease try again.');
+                return;
+            }
+
             // Expect a token on success
-            if (!result || !result.token) {
-                console.error('❌ Registration failed:', result?.message || result?.error || 'No token received');
-                alert('❌ Registration failed: ' + (result?.message || result?.error || 'Please try again'));
+            if (!result.token) {
+                const errorMsg = result.message || 'No token received';
+                console.error('❌ Registration failed:', errorMsg);
+                alert('❌ Registration failed: ' + errorMsg + '\n\nPlease check all fields and try again.');
                 return;
             }
 

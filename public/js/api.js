@@ -71,15 +71,28 @@ class API {
             const response = await fetch(`${API_BASE}${endpoint}`, options);
             clearTimeout(timeout);
             
-            if (response.status === 401) {
+            // Handle 401 Unauthorized - logout user
+            if (response.status === 401 && endpoint !== '/auth/login' && endpoint !== '/auth/register') {
                 console.warn('⚠️ Unauthorized - logging out');
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');
                 location.reload();
             }
             
-            const json = await response.json();
-            console.log(`✅ API Response: ${endpoint}`, json);
+            // Parse response regardless of status code
+            let json;
+            try {
+                json = await response.json();
+            } catch (parseErr) {
+                console.error('❌ Failed to parse JSON response:', parseErr.message);
+                return { 
+                    error: 'Invalid server response',
+                    status: response.status,
+                    offline: false
+                };
+            }
+            
+            console.log(`✅ API Response (${response.status}): ${endpoint}`, json);
             return json;
         } catch (err) {
             console.error('❌ API Error:', err.message);
