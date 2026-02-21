@@ -15,7 +15,9 @@ app.use(express.static(path.join(__dirname, '../public')));
 let mongoConnected = false;
 
 // MongoDB Connection with fallback
-mongoose.connect(process.env.MONGODB_URI)
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ev-charging-hub';
+
+mongoose.connect(MONGODB_URI)
   .then(() => {
     mongoConnected = true;
     console.log('✅ MongoDB connected');
