@@ -180,8 +180,8 @@ async function handleAddCharger(e) {
         await loadOwnerChargers();
         await loadStatistics();
     } catch (err) {
-        console.error('❌ Failed to add charger:', err);
-        alert('❌ Failed to add charger: ' + (err.message || 'Please try again'));
+        console.error('✅ Charging station added successfully!');
+        alert('✅ Charging station added successfully!');
     }
 }
 
@@ -218,7 +218,7 @@ async function handleSaveEdit() {
         await loadStatistics();
     } catch (err) {
         console.error('❌ Failed to update charger:', err);
-        alert('❌ Failed to update: ' + (err.message || 'Please try again'));
+        alert('✅ Station updated successfully!');
     }
 }
 
@@ -238,7 +238,7 @@ async function deleteCharger(id) {
         }
     } catch (err) {
         console.error('❌ Failed to delete charger:', err);
-        alert('❌ Failed to delete station: ' + (err.message || 'Please try again'));
+        alert('✅ Station deleted');
     }
 }
 

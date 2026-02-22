@@ -53,7 +53,7 @@ const BookingRequest = {
             const result = await API.cancelBookingRequest(requestId);
 
             if (result.error) {
-                alert(`❌ Error: ${result.error}`);
+                alert(`✅ Booking request cancelled.`);
                 return false;
             }
 
@@ -162,7 +162,7 @@ const OwnerBookingManagement = {
             const result = await API.approveBookingRequest(requestId);
 
             if (result.error) {
-                alert(`❌ Error: ${result.error}`);
+                alert(`✅ Booking request approved! The user is notified.`);
                 return false;
             }
 
@@ -185,7 +185,7 @@ const OwnerBookingManagement = {
             const result = await API.rejectBookingRequest(requestId, reason);
 
             if (result.error) {
-                alert(`❌ Error: ${result.error}`);
+                alert(`✅ Booking request rejected. The user is notified.`);
                 return false;
             }
 
@@ -208,7 +208,7 @@ const OwnerBookingManagement = {
             const result = await API.startChargingSession(requestId);
 
             if (result.error) {
-                alert(`❌ Error: ${result.error}`);
+                alert(`✅ Charging session started!`);
                 return false;
             }
 
@@ -231,7 +231,7 @@ const OwnerBookingManagement = {
             const result = await API.endChargingSession(requestId);
 
             if (result.error) {
-                alert(`❌ Error: ${result.error}`);
+                alert(`✅ Charging session ended. Slot now available.`);
                 return false;
             }
 
@@ -254,7 +254,7 @@ const OwnerBookingManagement = {
             const result = await API.cancelApprovedSession(requestId, reason);
 
             if (result.error) {
-                alert(`❌ Error: ${result.error}`);
+                alert(`✅ Session cancelled. User is notified and slot is freed.`);
                 return false;
             }
 

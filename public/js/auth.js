@@ -45,7 +45,7 @@ const Auth = {
             console.log(`✅ Login successful: ${result.user.name}`);
 
             // Redirect to appropriate dashboard
-            const dashboard = result.user.role === 'owner' ? 'owner-dashboard.html' : 'dashboard.html';
+            const dashboard = result.user.role === 'owner' ? '/owner.html' : '/dashboard.html';
             console.log(`📍 Redirecting to ${dashboard}`);
             window.location.href = dashboard;
         } catch (err) {
@@ -85,7 +85,7 @@ const Auth = {
             console.log(`✅ Registration successful: ${result.user.name}`);
 
             // Redirect to dashboard
-            const dashboard = result.user.role === 'owner' ? 'owner-dashboard.html' : 'dashboard.html';
+            const dashboard = result.user.role === 'owner' ? '/owner.html' : '/dashboard.html';
             console.log(`📍 Redirecting to ${dashboard}`);
             window.location.href = dashboard;
         } catch (err) {
@@ -100,7 +100,7 @@ const Auth = {
         console.log('🚪 Logging out');
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        window.location.href = 'index.html';
+        window.location.href = '/';
     },
 
     // Check if user is logged in
@@ -119,7 +119,7 @@ const Auth = {
     requireAuth() {
         if (!this.isAuthenticated()) {
             console.warn('⚠️ Unauthorized access - redirecting to home');
-            window.location.href = 'index.html';
+            window.location.href = '/';
             return false;
         }
         console.log('✅ User authenticated');
